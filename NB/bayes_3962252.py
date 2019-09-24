@@ -4,7 +4,6 @@
 
 ####### Imports ########
 import sys
-import time
 
 import numpy as np
 import pandas as pd
@@ -18,14 +17,19 @@ if(show_matrix):
     import matplotlib.pyplot as plt
     
 class NaiveBayes():
-
+    '''
+    Description
+    -----------
+    Class that can handle data and run the naive bayes classifier on the iris dataset. 
+    '''
+    
     def __init__(self, training_set, num_features, num_classes):
-        '''
-        '''
         # Store the training set
         self.training_set = training_set
+        
         self.num_features = num_features
         self.num_classes  = num_classes
+
         # MLE estimates for Sigma. One sigma for each class and feature 
         self.sigma        = np.zeros((self.num_classes, self.num_features))
         # MLE estimates for Mu. One mu for each class and feature
@@ -34,7 +38,17 @@ class NaiveBayes():
 
     def train(self):
         '''
+        Description
+        -----------
         'train' gets the likelihood and prior probabilities ready for testing.
+
+        Input
+        -----
+        None
+        
+        Output
+        ------
+        None
         '''
         
         #### Priors ###
@@ -42,31 +56,41 @@ class NaiveBayes():
         self.theta = np.array([ np.sum(data.iloc[self.training_set][4] == cl) for cl in classes.keys() ]) / len(self.training_set)
         ###############
 
+        
+        ### Likelihoods ###        
         # Mask matrix where each row represents a different class,  
         in_classy = [[classes[data.iloc[int(i)][4]] == y for i in self.training_set] for y in range(self.num_classes)]
-        
-        ### Likelihoods ###
+
+        # Vector of nth feature across all training examples
+        xn = data.iloc[self.training_set] 
+            
         for y in range(self.num_classes):
+            # Number of examples in class y
             my = (self.theta[y]*len(self.training_set))
-            xn = data.iloc[self.training_set] # Vector of nth feature across all training examples
             
             for n in range(self.num_features):
                 # MLE estimates for mu
-                #self.mu[y][n] = (1./my) * np.sum(np.multiply(xn[n], in_classy[y]))
                 self.mu[y][n] = (1./my) * np.dot(xn[n], in_classy[y])
+                
                 # MLE estimates for sigma
-                #self.sigma[y][n] = (1. / (my-1)) * (np.sum(np.multiply((xn[n]-self.mu[y][n])**2, in_classy[y])))
                 self.sigma[y][n] = (1. / (my-1)) * np.dot((xn[n]-self.mu[y][n])**2, in_classy[y])
         ###################
 
 
     def predict(self, test_example):
         '''
-        'predict' calculates the most probable class given the data'
-        
+        'predict' calculates the most probable class given the data, using this idea
         Y* = argmax(Y in the set of classes) [P(X1|Y)*P(X2|Y)*...*P(Xn|Y)*P(Y)]
            = argmax(Y in the set of classes) [log(P(X1|Y))+log(P(X2|Y))+...+log(P(Xn|Y))+log(P(Y))]
-        '''
+        
+        Input
+        -----
+        'test_ex':float 
+        
+        Output
+        ------
+        tuple of class prediction and actual class, both integers.
+        '''      
         actual    = test_example[4]
         predicted = [-1,-1e9] # [class index, likelihood]
 
@@ -77,17 +101,16 @@ class NaiveBayes():
                 predicted[0] = y
                 predicted[1] = prob
 
-        print("%d and %d... %d" % (predicted[0], classes[actual], (predicted[0] == classes[actual])))
-        return predicted[0],classes[actual]
+        return predicted[0], classes[actual]
 
     def logLikelihood(self, test_ex, y, n):
         '''
-        Calculates the likelihood of the test example given the MLE estimates of mu and sigma, and the features of the test example.
+        Calculates the log likelihood of the test example given the MLE estimates of mu and sigma, and the features of the test example.
 
         Input
         -----
         'test_ex':float 
-        'n': integer: specifies feature
+        'n': integer: specifies nth feature
         
         Output
         ------
@@ -102,7 +125,7 @@ class NaiveBayes():
     
 
 ####### Getting data / initializing variables ###
-data      = pd.read_csv('/Users/bjm/Documents/School/fall2019/CAP5610/assignments/a1/data/iris.data', header=None) # CHANGE ME
+data      = pd.read_csv('/home/bjm/Documents/School/fall2019/CAP5610/assignments/a1/data/iris.data', header=None) # CHANGE ME
 classes   = {} # Dictionary will store class name with index
 class_idx = 0 
 num_feats = len(data.iloc[0])-1 # Number of features
