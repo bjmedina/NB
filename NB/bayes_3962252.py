@@ -10,6 +10,13 @@ import numpy as np
 import pandas as pd
 ########################
 
+
+# This plots the confusion matrix at the end of the program
+show_matrix = True
+
+if(show_matrix):
+    import matplotlib.pyplot as plt
+    
 class NaiveBayes():
 
     def __init__(self, training_set, num_features, num_classes):
@@ -34,20 +41,24 @@ class NaiveBayes():
         # Prior probabilities for class d will be called theta(d), where d is the class
         self.theta = np.array([ np.sum(data.iloc[self.training_set][4] == cl) for cl in classes.keys() ]) / len(self.training_set)
         ###############
-  
+
+        # Mask matrix where each row represents a different class,  
+        in_classy = [[classes[data.iloc[int(i)][4]] == y for i in self.training_set] for y in range(self.num_classes)]
+        
         ### Likelihoods ###
         for y in range(self.num_classes):
             my = (self.theta[y]*len(self.training_set))
             xn = data.iloc[self.training_set] # Vector of nth feature across all training examples
             
             for n in range(self.num_features):
-                in_classy = [1 if (classes[data.iloc[int(i)][4]] == y) else 0 for i in self.training_set] # 1 for examples in class y
                 # MLE estimates for mu
-                self.mu[y][n] = (1./my) * np.sum(np.multiply(xn[n], in_classy))
-
+                #self.mu[y][n] = (1./my) * np.sum(np.multiply(xn[n], in_classy[y]))
+                self.mu[y][n] = (1./my) * np.dot(xn[n], in_classy[y])
                 # MLE estimates for sigma
-                self.sigma[y][n] = (1. / (my-1)) * (np.sum(np.multiply((xn[n]-self.mu[y][n])**2, in_classy)))
+                #self.sigma[y][n] = (1. / (my-1)) * (np.sum(np.multiply((xn[n]-self.mu[y][n])**2, in_classy[y])))
+                self.sigma[y][n] = (1. / (my-1)) * np.dot((xn[n]-self.mu[y][n])**2, in_classy[y])
         ###################
+
 
     def predict(self, test_example):
         '''
@@ -57,18 +68,19 @@ class NaiveBayes():
            = argmax(Y in the set of classes) [log(P(X1|Y))+log(P(X2|Y))+...+log(P(Xn|Y))+log(P(Y))]
         '''
         actual    = test_example[4]
-        predicted = [-1,0] # [class index, likelihood]
+        predicted = [-1,-1e9] # [class index, likelihood]
 
         for y in range(self.num_classes):
-            prob = np.sum(np.log([self.Likelihood(test_example, y, i) for i in range(self.num_features)])) + self.theta[y]
+            prob = np.sum([self.logLikelihood(test_example, y, i) for i in range(self.num_features)]) + np.log(self.theta[y])
             
             if(prob >= predicted[1]):
                 predicted[0] = y
                 predicted[1] = prob
 
+        print("%d and %d... %d" % (predicted[0], classes[actual], (predicted[0] == classes[actual])))
         return predicted[0],classes[actual]
 
-    def Likelihood(self, test_ex, y, n):
+    def logLikelihood(self, test_ex, y, n):
         '''
         Calculates the likelihood of the test example given the MLE estimates of mu and sigma, and the features of the test example.
 
@@ -81,8 +93,12 @@ class NaiveBayes():
         ------
         scalar probability
         '''
+        a = ((2*np.pi)**(0.5)) * self.sigma[y][n]
+        a = 1. / a
+        b = -((test_ex[n] - self.mu[y][n]) ** 2)
+        c = 2 * (self.sigma[y][n]**2)
         
-        return (1. / ((2*np.pi)**(0.5) * self.sigma[y][n])) * np.exp(((test_ex[n]-self.mu[y][n])**(2)) / (2*(self.sigma[y][n]**2)))
+        return np.log(a) + (b/c)
     
 
 ####### Getting data / initializing variables ###
@@ -135,6 +151,17 @@ for fold in range(KFolds):
         confusion[predicted][actual] += 1
 
 # 8. Report
-print(confusion)
-accuracy = (np.sum([confusion[i][i] for i in range(len(confusion))]) / K) * 100
-print("\nAccuracy: %.2f %%" % (accuracy))
+accuracy = (np.sum([confusion[i][i] for i in range(len(confusion))]) / (K)) * 100
+
+if(show_matrix):
+    plt.matshow(confusion)
+    plt.title("Confusion Matrix for naive bayes %.2f %% Accuracy" % (accuracy))
+    plt.colorbar()
+    plt.xlabel("True Label")
+    plt.ylabel("Predicted Label")
+    plt.show()
+else:
+    print("Confusion Matrix:")
+    print(confusion)
+    print("\nAccuracy: %.2f %%" % (accuracy))
+
